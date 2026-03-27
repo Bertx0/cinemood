@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { WatchlistItem } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY || "" });
 
 export interface DetailedFilmInfo {
   title: string;
@@ -22,9 +22,9 @@ export interface DetailedFilmInfo {
 }
 
 export async function searchFilm(query: string): Promise<DetailedFilmInfo | null> {
-  const model = "gemini-3.1-flash-lite-preview";
+  const model = "gemini-2.5-flash";
   const currentDate = new Date().toLocaleDateString();
-  
+
   const prompt = `
     Today's date is ${currentDate}. 
     Find CURRENT official info for: "${query}".
@@ -79,14 +79,14 @@ export async function searchFilm(query: string): Promise<DetailedFilmInfo | null
     // Safely extract text from the first candidate's content parts
     const candidate = response.candidates?.[0];
     const textPart = candidate?.content?.parts?.find(p => p.text)?.text;
-    
+
     if (!textPart) {
       console.error("Search Error: No text part found in response", response);
       return null;
     }
 
     const cleanJson = textPart.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
-    
+
     try {
       return JSON.parse(cleanJson);
     } catch (parseError) {
@@ -100,8 +100,8 @@ export async function searchFilm(query: string): Promise<DetailedFilmInfo | null
 }
 
 export async function getRecommendation(mood: string, history: WatchlistItem[]) {
-  const model = "gemini-3.1-flash-lite-preview";
-  
+  const model = "gemini-2.5-flash";
+
   const historyText = history
     .filter(item => item.status === 'watched')
     .map(item => `- ${item.title} (${item.type}, ${item.platform})`)
@@ -118,9 +118,6 @@ export async function getRecommendation(mood: string, history: WatchlistItem[]) 
     const response = await ai.models.generateContent({
       model,
       contents: prompt,
-      config: {
-        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }
-      }
     });
     return response.text;
   } catch (error) {
