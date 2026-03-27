@@ -15,7 +15,7 @@ This project was developed during a 5-day workshop hosted by **Develhope**. Thro
 
 <table>
   <tr>
-    <td><img src="./screenshots/ai-suggestions-page.png" alt="AI suggestion page" width="20%"/></td>
+    <td><img src="./screenshots/watched-page.png" alt="Watched page" width="20%"/></td>
     <td><img src="./screenshots/to-watch-page.png" alt="Watchlist View" width="20%"/></td>
   </tr>
   <tr>
