@@ -1,0 +1,5 @@
+{
+  "name": "CineMood",
+  "description": "A personalized watchlist for films, TV series, and anime across top streaming platforms with AI-powered mood-based recommendations.",
+  "requestFramePermissions": []
+}

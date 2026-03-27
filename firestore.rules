@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: watchlist
+    // Document ID: itemId
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - type: string (required, enum: film, tv, anime)
+    //   - platform: string (required, enum: Netflix, Prime Video, Now, Disney+)
+    //   - status: string (required, enum: to-watch, watching, watched)
+    //   - rating: number (optional, 1-5)
+    //   - moodTags: list (optional, max 10 strings, each < 50 chars)
+    //   - userUid: string (required, immutable, matches auth.uid)
+    //   - createdAt: timestamp (required, immutable)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userUid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "albertoraffa2006@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function uidUnchanged() {
+      return request.resource.data.userUid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return request.resource.data.userUid == resource.data.userUid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidWatchlistItem(data) {
+      let allowedFields = ['title', 'type', 'platform', 'duration', 'releaseYear', 'genres', 'tmdbId', 'status', 'rating', 'moodTags', 'userUid', 'createdAt'];
+      return hasOnlyAllowedFields(allowedFields) &&
+             (!('duration' in data) || data.duration is string) &&
+             (!('releaseYear' in data) || data.releaseYear is number) &&
+             (!('tmdbId' in data) || data.tmdbId is number) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.type in ['film', 'tv', 'anime'] &&
+             data.platform is string &&
+             data.status in ['to-watch', 'watching', 'watched'] &&
+             (!('rating' in data) || (data.rating is number && data.rating >= 1 && data.rating <= 5)) &&
+             (!('moodTags' in data) || (data.moodTags is list && data.moodTags.size() <= 10)) &&
+             (!('genres' in data) || (data.genres is list && data.genres.size() <= 10)) &&
+             data.userUid == request.auth.uid &&
+             (data.createdAt is timestamp || data.createdAt == request.time);
+    }
+
+    match /watchlist/{itemId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidWatchlistItem(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidWatchlistItem(request.resource.data) && areImmutableFieldsUnchanged(['userUid', 'createdAt']);
+      allow delete: if isAuthenticated() && (isDocOwner() || isAdmin());
+    }
+
+    match /users/{userId} {
+      function isValidUser(data) {
+        return hasOnlyAllowedFields(['displayName', 'email', 'photoURL', 'role']) &&
+               data.displayName is string &&
+               data.email is string &&
+               data.role == 'user';
+      }
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && areImmutableFieldsUnchanged(['role']);
+    }
+  }
+}
